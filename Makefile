@@ -32,8 +32,14 @@ endef
 
 all: clean docker deploy
 
+# ==============================
+# 🧹 Clean
+# ==============================
 clean:
-	rm bin/${PROGRAM_NAME}.exec -f
+	$(call log_step,🧹 Cleaning up binaries...)
+	$(call run_cmd,rm -f "$(PROGRAM_NAME).exec" "bin/$(PROGRAM_NAME).exec")
+	$(call log_success,Cleanup complete!)
+
 
 docker:
 	#docker run -d --name arkos-sdk -c 1024 -it --volume=/home/vitaly/GolandProjects/:/work/ --workdir=/work/ arkos-sdk

@@ -80,3 +80,14 @@ deploy:
 	sshpass -p ${PWD} ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${USN}@${IP} "sh -c 'cd /tmp; ${DEPLOY_PATH}/${PROGRAM_NAME}.exec'" &
 
 
+
+# ==============================
+# 📖 Help
+# ==============================
+help:
+	@echo "📖 Available commands:"
+	@echo "  make mac-setup     🍎 Install SDL + setup env (one-time)"
+	@echo "  make mac-build     🍎 Build natively on macOS"
+	@echo "  make deploy        🚀 Deploy binary to device"
+	@echo "  make clean         🧹 Remove generated binaries"
+	@echo "  make help          📖 Show this help message"

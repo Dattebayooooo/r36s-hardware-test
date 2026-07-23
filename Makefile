@@ -1,8 +1,9 @@
 PROGRAM_NAME := r36s-hardware-test
-DEPLOY_PATH := /userdata/roms/native
-IP := 192.168.0.107
-USN := root
-PWD := linux
+DEPLOY_PATH ?= /userdata/roms/native
+IP ?= 192.168.0.110
+USN ?= ark
+PWD ?= ark
+
 
 # ==============================
 # ⏱️ Log Helpers
@@ -71,15 +72,44 @@ mac-build:
 	go build -v -o $(PROGRAM_NAME) ./src)
 	$(call log_success,macOS build successful! Binary: $(PROGRAM_NAME))
 
+# ==============================
+# 🐧 Linux Setup & Build
+# ==============================
+linux-setup:
+	$(call log_step,🐧 Installing SDL dependencies via apt...)
+	$(call run_cmd,sudo apt-get update && sudo apt-get install -y libsdl2-dev libsdl2-image-dev build-essential)
+	$(call log_success,Setup complete!)
+
+linux-build:
+	$(call log_step,🐧 Building $(PROGRAM_NAME) natively on Linux...)
+	$(call run_cmd,go build -v -o $(PROGRAM_NAME) ./src)
+	$(call log_success,Linux build successful! Binary: $(PROGRAM_NAME))
+
+# ==============================
+# 🚀 Deploy to Device
+# ==============================
 deploy:
-	sshpass -p ${PWD} ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${USN}@${IP} "/etc/init.d/S31emulationstation stop"
-	sshpass -p ${PWD} ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${USN}@${IP} "rm ${DEPLOY_PATH}/${PROGRAM_NAME}.exec -f"
-	sshpass -p ${PWD} scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null bin/${PROGRAM_NAME}.exec ${USN}@${IP}:${DEPLOY_PATH}
-	sshpass -p ${PWD} ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${USN}@${IP} "chmod 777 ${DEPLOY_PATH}/${PROGRAM_NAME}.exec"
-	sshpass -p ${PWD} ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${USN}@${IP} "pkill -f ${PROGRAM_NAME}.exec"
-	sshpass -p ${PWD} ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${USN}@${IP} "sh -c 'cd /tmp; ${DEPLOY_PATH}/${PROGRAM_NAME}.exec'" &
+	@if [ -z "$(IP)" ] || [ -z "$(USN)" ] || [ -z "$(PWD)" ]; then \
+		echo "❌ Missing required variables. Usage:"; \
+		echo "make deploy IP=<ip> USN=<username> PWD=<password>"; \
+		exit 1; \
+	fi
 
+	$(call log_step,🚀 Deploying $(PROGRAM_NAME) to $(USN)@$(IP)...)
 
+	$(call run_cmd,ssh -p $(PWD) ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $(USN)@$(IP) "/etc/init.d/S31emulationstation stop")
+
+	$(call run_cmd,ssh -p $(PWD) ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $(USN)@$(IP) "rm -f $(DEPLOY_PATH)/$(PROGRAM_NAME).exec")
+
+	$(call run_cmd,ssh -p $(PWD) scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null bin/$(PROGRAM_NAME).exec $(USN)@$(IP):$(DEPLOY_PATH))
+
+	$(call run_cmd,ssh -p $(PWD) ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $(USN)@$(IP) "chmod +x $(DEPLOY_PATH)/$(PROGRAM_NAME).exec")
+
+	$(call run_cmd,ssh -p $(PWD) ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $(USN)@$(IP) "pkill -f $(PROGRAM_NAME).exec || true")
+
+	$(call run_cmd,ssh -p $(PWD) ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $(USN)@$(IP) "sh -c 'cd /tmp; $(DEPLOY_PATH)/$(PROGRAM_NAME).exec'" &)
+
+	$(call log_success,Deployment complete!)
 
 # ==============================
 # 📖 Help
@@ -88,6 +118,9 @@ help:
 	@echo "📖 Available commands:"
 	@echo "  make mac-setup     🍎 Install SDL + setup env (one-time)"
 	@echo "  make mac-build     🍎 Build natively on macOS"
+	@echo "  make linux-setup   🐧 Install SDL dependencies on Linux (one-time)"
+	@echo "  make linux-build   🐧 Build natively on Linux"
 	@echo "  make deploy        🚀 Deploy binary to device"
 	@echo "  make clean         🧹 Remove generated binaries"
 	@echo "  make help          📖 Show this help message"
+
